@@ -1,0 +1,25 @@
+repos:
+  - repo: local
+    hooks:
+      # Ruff linter
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check
+        language: system
+        types: [python]
+        args: [--fix, --output-format=full, --show-fixes]
+
+      # Ruff formatter  
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+
+      # Mypy type checker
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        args: [--ignore-missing-imports]
