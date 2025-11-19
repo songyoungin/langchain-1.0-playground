@@ -3,7 +3,9 @@
     "allow": [
       "Bash(uv add:*)",
       "Bash(source .venv/bin/activate)",
-      "Bash(python -c:*)"
+      "Bash(python -c:*)",
+      "Bash(python examples/memory_basic.py:*)",
+      "Bash(python examples/memory_persistent.py:*)"
     ],
     "deny": [],
     "ask": []
