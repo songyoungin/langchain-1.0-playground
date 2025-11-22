@@ -6,93 +6,86 @@ from langchain.agents import create_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.sqlite import SqliteSaver
 
-# Load environment variables
+# .env 환경을 로드해 LangGraph 에이전트가 사용할 API 키를 준비한다.
 load_dotenv()
 
 
-# Define tool function
 def save_user_name(name: str) -> str:
-    """Save the user's name.
+    """사용자의 이름을 저장했다고 가정하고 확인 메시지를 반환한다.
 
     Args:
-        name: The user's name to save.
+        name: 저장할 사용자 이름.
 
     Returns:
-        A confirmation message that the name was saved.
+        이름을 기억했음을 알리는 안내 문장.
     """
     return f"I've remembered your name, {name}."
 
 
-# Create Gemini model instance
 model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
-# SQLite database file path
+# LangGraph SqliteSaver가 체크포인트를 기록할 데이터베이스 경로.
 db_path = "checkpoints.db"
 
 print("=" * 80)
-print("LangChain 1.0 - Persistent Memory Example (SqliteSaver)")
+print("LangChain 1.0 - 영속 메모리 예제 (SqliteSaver)")
 print("=" * 80)
-print(f"\n💾 Database file: {os.path.abspath(db_path)}")
+print(f"\n💾 데이터베이스 파일: {os.path.abspath(db_path)}")
 print()
 
-# Create and use SqliteSaver checkpointer
 with SqliteSaver.from_conn_string(db_path) as checkpointer:
-    # Create agent with persistent memory using create_agent
     agent: Any = create_agent(
         model=model,
         tools=[save_user_name],
-        checkpointer=checkpointer,  # Add SQLite checkpointer
+        # SqliteSaver는 LangGraph 실행 스냅샷을 파일로 저장해 프로세스가 재시작해도 복원된다.
+        checkpointer=checkpointer,
         system_prompt="You are a helpful assistant that permanently remembers conversation history.",
     )
 
-    # Conversation Session: thread_id = "persistent-user-1"
-    print("[Session 1] thread_id: persistent-user-1")
+    print("[세션 1] thread_id: persistent-user-1")
     print("-" * 80)
 
+    # 동일 thread_id는 LangGraph가 같은 체크포인트 레코드를 갱신하도록 지시한다.
     config: dict[str, Any] = {"configurable": {"thread_id": "persistent-user-1"}}
 
-    # Turn 1: Introduce name
-    print("\n[Turn 1] User: My name is Jane")
+    print("\n[턴 1] 사용자 입력: 'My name is Jane'")
     inputs_1: dict[str, Any] = {
         "messages": [{"role": "user", "content": "My name is Jane"}]
     }
     result_1: dict[str, Any] = agent.invoke(inputs_1, config)
-    print(f"Agent: {result_1['messages'][-1].content}")
+    print(f"에이전트: {result_1['messages'][-1].content}")
 
-    # Turn 2: Ask for name
-    print("\n[Turn 2] User: What was my name?")
+    print("\n[턴 2] 사용자 입력: 'What was my name?'")
     inputs_2: dict[str, Any] = {
         "messages": [{"role": "user", "content": "What was my name?"}]
     }
     result_2: dict[str, Any] = agent.invoke(inputs_2, config)
-    print(f"Agent: {result_2['messages'][-1].content}")
+    print(f"에이전트: {result_2['messages'][-1].content}")
 
-    print("\n✅ Conversation has been saved to SQLite database.")
+    print("\n✅ 대화가 SQLite 데이터베이스에 저장되었습니다.")
 
-    # Simulate restart (using same thread_id)
-    print("\n\n[Restart Simulation] New conversation with same thread_id")
+    print("\n\n[재시작 시뮬레이션] 동일 thread_id로 새 대화를 시작합니다")
     print("-" * 80)
 
-    # Turn 3: Ask for name again (loaded from DB)
-    print("\n[Turn 3] User: Do you still remember my name?")
+    print("\n[턴 3] 사용자 입력: 'Do you still remember my name?'")
     inputs_3: dict[str, Any] = {
         "messages": [{"role": "user", "content": "Do you still remember my name?"}]
     }
+    # LangGraph는 SQLite에 축적된 상태를 읽어 동일 스레드의 컨텍스트를 재구성한다.
     result_3: dict[str, Any] = agent.invoke(inputs_3, config)
-    print(f"Agent: {result_3['messages'][-1].content}")
+    print(f"에이전트: {result_3['messages'][-1].content}")
 
-    print("\n✅ Previous conversation was loaded from SQLite database.")
+    print("\n✅ 이전 대화가 SQLite 데이터베이스에서 복원되었습니다.")
 
 print("\n" + "=" * 80)
-print("Persistent memory feature test completed!")
+print("영속 메모리 기능 테스트를 완료했습니다!")
 print("=" * 80)
 
-# Display database file info
 if os.path.exists(db_path):
     file_size = os.path.getsize(db_path)
-    print("\n💾 Database file information:")
-    print(f"   - Path: {os.path.abspath(db_path)}")
-    print(f"   - Size: {file_size:,} bytes")
+    print("\n💾 데이터베이스 파일 정보:")
+    print(f"   - 경로: {os.path.abspath(db_path)}")
+    print(f"   - 크기: {file_size:,} 바이트")
     print(
-        "\n💡 As long as this file is not deleted, conversation history persists across program restarts."
+        "\n💡 이 파일을 삭제하지 않으면 프로그램을 다시 실행해도 대화 이력이 유지됩니다."
     )
